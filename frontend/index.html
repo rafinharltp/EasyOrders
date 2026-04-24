@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EasyOrders - CRUD Produtos</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;max-width:900px;margin:20px auto;padding:20px;background:#f5f5f5}
+        h1{color:#333;text-align:center;margin-bottom:30px;font-size:2em}
+        .form-container{background:#fff;padding:25px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.1);margin-bottom:30px}
+        .form-group{margin-bottom:18px}
+        label{display:block;margin-bottom:8px;font-weight:700;color:#555}
+        input{width:100%;padding:12px;border:2px solid #e1e5e9;border-radius:6px;font-size:16px;transition:border-color 0.3s}
+        input:focus{outline:none;border-color:#007bff}
+        button{background:#007bff;color:#fff;padding:12px 24px;border:none;border-radius:6px;cursor:pointer;font-size:16px;font-weight:700;transition:background 0.3s}
+        button:hover{background:#0056b3}
+        button.danger{background:#dc3545}
+        button.danger:hover{background:#c82333}
+        button.small{padding:8px 16px;font-size:14px;margin-right:8px}
+        .produtos-container .produto{background:#fff;padding:20px;margin:15px 0;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);border-left:5px solid #007bff}
+        .produto h4{margin:0 0 8px 0;color:#333;font-size:1.3em}
+        .produto p{font-size:1.2em;color:#007bff;font-weight:700;margin:5px 0}
+        #total{background:#007bff;color:#fff;padding:5px 12px;border-radius:20px;font-weight:700}
+        .status{display:inline-block;background:#28a745;color:#fff;padding:8px 16px;border-radius:20px;margin:20px 0;font-weight:700}
+    </style>
+</head>
+<body>
+    <h1>EasyOrders - Beer 🍺 Club</h1>
+    
+    <div class="form-container">
+        <h3 style="margin-bottom:20px;color:#333">Novo Produto / Editar</h3>
+        <div class="form-group">
+            <label>Nome do Produto:</label>
+            <input type="text" id="nome" placeholder="Ex: Cerveja Brahma 600ml">
+        </div>
+        <div class="form-group">
+            <label>Preço (R$):</label>
+            <input type="number" id="preco" step="0.01" placeholder="5.50">
+        </div>
+        <button onclick="salvarProduto()">Salvar Produto</button>
+        <button onclick="cancelarEdicao()" class="danger">Cancelar</button>
+    </div>
+
+    <h3 style="color:#333">Produtos Cadastrados (<span id="total">0</span>)</h3>
+    <div class="produtos-container" id="listaProdutos">
+        <div style="text-align:center;padding:40px;color:#999">
+            <h3>Cadastre o primeiro produto</h3>
+            <p>Os dados ficam salvos no servidor Node.js</p>
+        </div>
+    </div>
+
+    <script>
+        let editandoId = null;
+
+        window.onload = () => {
+            listarProdutos();
+            setInterval(listarProdutos, 2000); // Atualiza a cada 2s
+        };
+
+        async function listarProdutos() {
+            try {
+                const response = await fetch('http://localhost:3000/produtos');
+                const produtos = await response.json();
+                exibirProdutos(produtos);
+                document.getElementById('total').textContent = produtos.length;
+            } catch (error) {
+                console.log('Servidor não iniciado?');
+            }
+        }
+
+        function exibirProdutos(produtos) {
+            const lista = document.getElementById('listaProdutos');
+            if (produtos.length === 0) {
+                lista.innerHTML = '<div style="text-align:center;padding:40px;color:#999"><h3>Cadastre o primeiro produto</h3><p>Os dados ficam salvos no servidor Node.js</p></div>';
+                return;
+            }
+            lista.innerHTML = produtos.map(p => `
+                <div class="produto">
+                    <h4>${p.nome}</h4>
+                    <p>R$ ${parseFloat(p.preco).toFixed(2)}</p>
+                    <div>
+                        <button class="small" onclick="editarProduto(${p.id})">Editar</button>
+                        <button class="small danger" onclick="excluirProduto(${p.id})">🗑️ Excluir</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function salvarProduto() {
+            const nome = document.getElementById('nome').value.trim();
+            const preco = document.getElementById('preco').value;
+
+            if (!nome || !preco || preco <= 0) {
+                alert('Nome e preço válido são obrigatórios!');
+                return;
+            }
+
+            const produto = { nome, preco: parseFloat(preco) };
+
+            try {
+                const url = editandoId ? 
+                    `http://localhost:3000/produtos/${editandoId}` : 
+                    'http://localhost:3000/produtos';
+                
+                const method = editandoId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(produto)
+                });
+
+                if (response.ok) {
+                    limparFormulario();
+                    listarProdutos();
+                    alert(`✅ ${editandoId ? 'Atualizado' : 'Criado'} com sucesso!`);
+                }
+            } catch (error) {
+                alert('❌ Erro! Inicie o servidor: cd backend && node server.js');
+            }
+        }
+
+        async function editarProduto(id) {
+            try {
+                const response = await fetch(`http://localhost:3000/produtos/${id}`);
+                const produto = await response.json();
+                document.getElementById('nome').value = produto.nome;
+                document.getElementById('preco').value = produto.preco;
+                editandoId = id;
+            } catch (error) {
+                alert('❌ Erro ao carregar');
+            }
+        }
+
+        async function excluirProduto(id) {
+            if (confirm('Confirmar exclusão?')) {
+                try {
+                    const response = await fetch(`http://localhost:3000/produtos/${id}`, {
+                        method: 'DELETE'
+                    });
+                    if (response.ok) {
+                        listarProdutos();
+                    }
+                } catch (error) {
+                    alert('❌ Erro ao excluir');
+                }
+            }
+        }
+
+        function limparFormulario() {
+            document.getElementById('nome').value = '';
+            document.getElementById('preco').value = '';
+            editandoId = null;
+        }
+
+        function cancelarEdicao() {
+            limparFormulario();
+        }
+    </script>
+</body>
+</html>
