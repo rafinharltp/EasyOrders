@@ -51,13 +51,15 @@
 
     <script>
         let editandoId = null;
+        let carregando = false;
 
-        window.onload = () => {
-            listarProdutos();
-            setInterval(listarProdutos, 2000); // Atualiza a cada 2s
-        };
-
+        document.addEventListener("DOMContentLoaded", listarProdutos);
+        
         async function listarProdutos() {
+
+            if (carregando) return;
+            carregando = true;
+
             try {
                 const response = await fetch('http://localhost:3000/produtos');
                 const produtos = await response.json();
@@ -66,6 +68,8 @@
             } catch (error) {
                 console.log('Servidor não iniciado?');
             }
+
+            carregando = false;
         }
 
         function exibirProdutos(produtos) {
@@ -80,7 +84,7 @@
                     <p>R$ ${parseFloat(p.preco).toFixed(2)}</p>
                     <div>
                         <button class="small" onclick="editarProduto(${p.id})">Editar</button>
-                        <button class="small danger" onclick="excluirProduto(${p.id})">🗑️ Excluir</button>
+                        <button class="small danger" onclick="excluirProduto(${p.id})">Excluir</button>
                     </div>
                 </div>
             `).join('');
